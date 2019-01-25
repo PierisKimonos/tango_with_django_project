@@ -13,7 +13,8 @@ def index(request):
     # that will be passed to the template engine.
 
     category_list = Category.objects.order_by("-likes")[:5]
-    context_dict = {'categories': category_list}
+    page_list = Page.objects.order_by("-views")[:5]
+    context_dict = {'categories': category_list, "pages":page_list}
 
     # Render the response and send it back!
     return render(request, 'rango/index.html', context=context_dict)
@@ -39,7 +40,7 @@ def show_category(request, category_name_slug):
 
         # Retrieve all of the associated pages.
         # Note that filter() will return a list of page objects or an empty list
-        pages = Page.objects.filter(category = category)
+        pages = Page.objects.filter(category=category)
 
         # Adds our results list to the template context under name pages.
         context_dict["pages"] = pages
