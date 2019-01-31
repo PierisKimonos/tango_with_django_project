@@ -104,6 +104,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# redirect users to that aren’t logged in to:
+LOGIN_URL = '/rango/login/'
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/
