@@ -1,5 +1,5 @@
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required # login_required redirects to index if user is not logged in (see settings.py->)
 from django.http import HttpResponse, HttpResponseRedirect
 from django.core.urlresolvers import reverse
 from django.shortcuts import render
@@ -93,6 +93,7 @@ def add_category(request):
     return render(request, 'rango/add_category.html', {'form': form})
 
 
+@login_required
 def add_page(request, category_name_slug):
     try:
         category = Category.objects.get(slug=category_name_slug)
@@ -211,7 +212,9 @@ def user_login(request):
         else:
             # Bad login details were provided. So we can't log the user in.
             print("Invalid login details: {0}, {1}".format(username, password))
-            return HttpResponse("Invalid login details supplied.")
+            context_dict = {'invalid_username_password': "Invalid login details supplied."}
+            return render(request, 'rango/login.html', context_dict)
+            # return HttpResponse("Invalid login details supplied.")
 
     # The request is not a HTTP POST, so display the login form.
     # This scenario would most likely be a HTTP GET.
@@ -233,6 +236,7 @@ def user_logout(request):
 
 @login_required
 def restricted(request):
-    return HttpResponse("Since you're logged in, you can see this text!")
+    return render(request, 'rango/restricted.html', {})
+    # return HttpResponse("Since you're logged in, you can see this text!")
 
 
