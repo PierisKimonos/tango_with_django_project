@@ -1,8 +1,10 @@
+from datetime import datetime
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required # login_required redirects to index if user is not logged in (see settings.py->)
 from django.http import HttpResponse, HttpResponseRedirect
 from django.core.urlresolvers import reverse
 from django.shortcuts import render
+
 
 
 # Import the category model
@@ -17,17 +19,36 @@ def index(request):
     # Place the list in our context_dict dictionary
     # that will be passed to the template engine.
 
+    request.session.set_test_cookie() # inside the about view we check the test_cookie
+
     category_list = Category.objects.order_by("-likes")[:5]
     page_list = Page.objects.order_by("-views")[:5]
-    context_dict = {'categories': category_list, "pages":page_list}
+    context_dict = {'categories': category_list, "pages": page_list}
 
-    # Render the response and send it back!
-    return render(request, 'rango/index.html', context=context_dict)
+    # Call the helper function to handle the cookies
+    visitor_cookie_handler(request)
+
+    context_dict['visits'] = request.session.get('visits')
+
+    # Obtain the Response object early so we can add cookie information.
+    # this statement can also be before handling cookies in the case of client side cookies
+    response = render(request, 'rango/index.html', context=context_dict)
+
+    # Return response back to user, updating any cookies that need changed.
+    return response
+
 
 
 def about(request):
+    if request.session.test_cookie_worked():
+        print("TEST COOKIE WORKED!")
+        request.session.delete_test_cookie()
 
     context_dict = {}
+
+    visitor_cookie_handler(request)
+
+    context_dict['visits'] = request.session.get('visits')
 
     return render(request, 'rango/about.html', context=context_dict)
 
@@ -239,4 +260,48 @@ def restricted(request):
     return render(request, 'rango/restricted.html', {})
     # return HttpResponse("Since you're logged in, you can see this text!")
 
+# Cookies - Helper functions
+def visitor_cookie_handler(request):
+    # def visitor_cookie_handler(request, response):
+    #       """ This helper function takes the request and response objects – because we want to be able to access
+    #           the incoming cookies from the request, and add or update cookies in the response."""
+    # Get the number of visits to the site.
+    # The visits counter can only increment once a day.
+    # We use the COOKIES.get() function to obtain the visits cookie.
+    # If the cookie exists, the value returned is casted to an integer.
+    # If the cookie doesn't exist, then the default value of 1 is used.
 
+    # To check if a cookie exists we could use request.COOKIES.has_key('<cookie_name>')
+
+    # visits = int(request.COOKIES.get('visits','1')) ## client-side cookie
+    visits = int(get_server_side_cookie(request, 'visits', default_val='1'))
+
+    # last_visit_cookie = request.COOKIES.get('last_visit', str(datetime.now())) ## client-side cookie
+    last_visit_cookie = get_server_side_cookie(request, 'last_visit', default_val=str(datetime.now()))
+
+    # example of last_visit string --> "2019-02-05 20:02:32.377051"
+    last_visit_time = datetime.strptime(last_visit_cookie[:-7], '%Y-%m-%d %H:%M:%S')
+
+    # If it's been more than a day since the last visit...
+    # To check if it works properly we can uses .seconds instead of .days
+    if (datetime.now() - last_visit_time).days > 0:
+        visits = visits + 1
+        # Update the last visit cookie now that we have updated the count
+        # response.set_cookie('last_visit', str(datetime.now())) ## client-side cookie
+        request.session['last_visit'] = str(datetime.now())
+    else:
+        # Set the last visit cookie
+        # response.set_cookie('last_visit', last_visit_cookie) ## client-side cookie
+        request.session['last_visit'] = last_visit_cookie
+
+    # Update/set the visits cookie
+    # response.set_cookie('visits', visits) ## client-side cookie
+    request.session['visits'] = visits
+
+# A helper method
+def get_server_side_cookie(request, cookie, default_val=None):
+    """asks the request for a cookie"""
+    val = request.session.get(cookie)
+    if not val:
+        val = default_val
+    return val
